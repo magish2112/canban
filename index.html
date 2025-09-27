@@ -11,9 +11,45 @@
     <div class="container">
         <header class="header">
             <h1><i class="fas fa-tasks"></i> Канбан Доска</h1>
-            <button id="addTaskBtn" class="btn btn-primary">
-                <i class="fas fa-plus"></i> Добавить задачу
-            </button>
+            <div class="header-controls">
+                <!-- Панель поиска и фильтров -->
+                <div class="search-filters">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" placeholder="Поиск задач...">
+                    </div>
+                    <div class="filter-controls">
+                        <select id="statusFilter">
+                            <option value="all">Все статусы</option>
+                            <option value="todo">К выполнению</option>
+                            <option value="in-progress">В процессе</option>
+                            <option value="done">Готово</option>
+                        </select>
+                        <select id="priorityFilter">
+                            <option value="all">Все приоритеты</option>
+                            <option value="high">Высокий</option>
+                            <option value="medium">Средний</option>
+                            <option value="low">Низкий</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Кнопки управления -->
+                <div class="control-buttons">
+                    <button id="toggleThemeBtn" class="btn btn-secondary" title="Переключить тему">
+                        <i class="fas fa-moon"></i>
+                    </button>
+                    <button id="exportBtn" class="btn btn-secondary" title="Экспорт данных">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button id="archiveBtn" class="btn btn-secondary" title="Архив задач">
+                        <i class="fas fa-archive"></i>
+                    </button>
+                    <button id="addTaskBtn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Добавить задачу
+                    </button>
+                </div>
+            </div>
         </header>
 
         <div class="kanban-board">

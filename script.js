@@ -7,8 +7,13 @@ class KanbanBoard {
 
     init() {
         this.setupEventListeners();
+        this.setupSearchAndFilters();
+        this.setupThemeToggle();
+        this.setupExportImport();
+        this.setupArchive();
         this.renderTasks();
         this.updateTaskCounts();
+        this.loadTheme();
     }
 
     setupEventListeners() {
@@ -248,11 +253,13 @@ class KanbanBoard {
         return taskElement;
     }
 
-    updateTaskCounts() {
+    updateTaskCounts(filteredTasks = null) {
+        const tasksToCount = filteredTasks || this.tasks;
+
         const counts = {
-            todo: this.tasks.filter(task => task.status === 'todo').length,
-            'in-progress': this.tasks.filter(task => task.status === 'in-progress').length,
-            done: this.tasks.filter(task => task.status === 'done').length
+            todo: tasksToCount.filter(task => task.status === 'todo').length,
+            'in-progress': tasksToCount.filter(task => task.status === 'in-progress').length,
+            done: tasksToCount.filter(task => task.status === 'done').length
         };
 
         Object.keys(counts).forEach(status => {
@@ -274,6 +281,225 @@ class KanbanBoard {
 
     saveToLocalStorage() {
         localStorage.setItem('kanbanTasks', JSON.stringify(this.tasks));
+    }
+
+    // Поиск и фильтрация
+    setupSearchAndFilters() {
+        const searchInput = document.getElementById('searchInput');
+        const statusFilter = document.getElementById('statusFilter');
+        const priorityFilter = document.getElementById('priorityFilter');
+
+        const updateFilters = () => {
+            this.applyFilters();
+        };
+
+        searchInput.addEventListener('input', updateFilters);
+        statusFilter.addEventListener('change', updateFilters);
+        priorityFilter.addEventListener('change', updateFilters);
+    }
+
+    applyFilters() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const statusFilter = document.getElementById('statusFilter').value;
+        const priorityFilter = document.getElementById('priorityFilter').value;
+
+        let filteredTasks = this.tasks;
+
+        // Применяем поиск
+        if (searchTerm) {
+            filteredTasks = filteredTasks.filter(task =>
+                task.title.toLowerCase().includes(searchTerm) ||
+                (task.description && task.description.toLowerCase().includes(searchTerm))
+            );
+        }
+
+        // Применяем фильтр статуса
+        if (statusFilter !== 'all') {
+            filteredTasks = filteredTasks.filter(task => task.status === statusFilter);
+        }
+
+        // Применяем фильтр приоритета
+        if (priorityFilter !== 'all') {
+            filteredTasks = filteredTasks.filter(task => task.priority === priorityFilter);
+        }
+
+        this.renderFilteredTasks(filteredTasks);
+        this.updateTaskCounts(filteredTasks);
+    }
+
+    renderFilteredTasks(filteredTasks) {
+        // Очищаем все списки задач
+        document.querySelectorAll('.task-list').forEach(list => {
+            list.innerHTML = '';
+        });
+
+        // Группируем отфильтрованные задачи по статусу
+        const tasksByStatus = {
+            todo: filteredTasks.filter(task => task.status === 'todo'),
+            'in-progress': filteredTasks.filter(task => task.status === 'in-progress'),
+            done: filteredTasks.filter(task => task.status === 'done')
+        };
+
+        // Рендерим задачи в соответствующие колонки
+        Object.keys(tasksByStatus).forEach(status => {
+            const taskList = document.getElementById(status);
+            const tasks = tasksByStatus[status];
+
+            tasks.forEach(task => {
+                const taskElement = this.createTaskElement(task);
+                taskList.appendChild(taskElement);
+            });
+        });
+    }
+
+    // Темная тема
+    setupThemeToggle() {
+        const toggleBtn = document.getElementById('toggleThemeBtn');
+        toggleBtn.addEventListener('click', () => this.toggleTheme());
+    }
+
+    toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme');
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('kanbanTheme', newTheme);
+
+        // Обновляем иконку кнопки
+        const toggleBtn = document.getElementById('toggleThemeBtn');
+        const icon = toggleBtn.querySelector('i');
+        icon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
+
+    loadTheme() {
+        const savedTheme = localStorage.getItem('kanbanTheme') || 'light';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+
+        const toggleBtn = document.getElementById('toggleThemeBtn');
+        const icon = toggleBtn.querySelector('i');
+        icon.className = savedTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
+    }
+
+    // Экспорт/импорт данных
+    setupExportImport() {
+        const exportBtn = document.getElementById('exportBtn');
+        exportBtn.addEventListener('click', () => this.exportData());
+    }
+
+    exportData() {
+        const data = {
+            tasks: this.tasks,
+            exportedAt: new Date().toISOString(),
+            version: '1.0'
+        };
+
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `kanban-backup-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        alert('Данные успешно экспортированы!');
+    }
+
+    // Архив задач
+    setupArchive() {
+        const archiveBtn = document.getElementById('archiveBtn');
+        archiveBtn.addEventListener('click', () => this.showArchive());
+    }
+
+    showArchive() {
+        // Получаем завершенные задачи
+        const archivedTasks = this.tasks.filter(task => task.status === 'done');
+
+        if (archivedTasks.length === 0) {
+            alert('Нет завершенных задач для отображения в архиве.');
+            return;
+        }
+
+        // Создаем модальное окно для архива
+        const modal = document.createElement('div');
+        modal.className = 'modal archive-modal';
+        modal.innerHTML = `
+            <div class="modal-content archive-content">
+                <div class="modal-header">
+                    <h2>Архив завершенных задач</h2>
+                    <span class="close">&times;</span>
+                </div>
+                <div class="archive-list">
+                    ${archivedTasks.map(task => `
+                        <div class="archive-item">
+                            <div class="archive-task-info">
+                                <h3>${this.escapeHtml(task.title)}</h3>
+                                ${task.description ? `<p>${this.escapeHtml(task.description)}</p>` : ''}
+                                <small>Завершено: ${new Date(task.updatedAt).toLocaleDateString()}</small>
+                            </div>
+                            <div class="archive-actions">
+                                <button class="btn btn-secondary restore-task" data-task-id="${task.id}">
+                                    <i class="fas fa-undo"></i> Восстановить
+                                </button>
+                                <button class="btn btn-danger delete-task" data-task-id="${task.id}">
+                                    <i class="fas fa-trash"></i> Удалить
+                                </button>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        // Обработчики событий
+        modal.querySelector('.close').addEventListener('click', () => {
+            document.body.removeChild(modal);
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                document.body.removeChild(modal);
+            }
+        });
+
+        // Обработчики для кнопок восстановления и удаления
+        modal.querySelectorAll('.restore-task').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const taskId = e.target.closest('.restore-task').dataset.taskId;
+                this.restoreTask(taskId);
+                document.body.removeChild(modal);
+            });
+        });
+
+        modal.querySelectorAll('.delete-task').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const taskId = e.target.closest('.delete-task').dataset.taskId;
+                if (confirm('Удалить задачу навсегда? Это действие нельзя отменить.')) {
+                    this.tasks = this.tasks.filter(task => task.id !== taskId);
+                    this.saveToLocalStorage();
+                    this.renderTasks();
+                    this.updateTaskCounts();
+                    document.body.removeChild(modal);
+                }
+            });
+        });
+
+        modal.style.display = 'block';
+    }
+
+    restoreTask(taskId) {
+        const taskIndex = this.tasks.findIndex(task => task.id === taskId);
+        if (taskIndex !== -1) {
+            this.tasks[taskIndex].status = 'todo';
+            this.tasks[taskIndex].updatedAt = new Date().toISOString();
+            this.saveToLocalStorage();
+            this.renderTasks();
+            this.updateTaskCounts();
+        }
     }
 }
 
