@@ -91,6 +91,7 @@ class KanbanBoard {
                 document.getElementById('taskTitle').value = task.title;
                 document.getElementById('taskDescription').value = task.description || '';
                 document.getElementById('taskPriority').value = task.priority;
+                document.getElementById('taskDueDate').value = task.dueDate ? task.dueDate.split('T')[0] : '';
                 statusSelect.value = task.status;
             }
         } else {
@@ -113,12 +114,15 @@ class KanbanBoard {
         const title = document.getElementById('taskTitle').value.trim();
         const description = document.getElementById('taskDescription').value.trim();
         const priority = document.getElementById('taskPriority').value;
+        const dueDate = document.getElementById('taskDueDate').value;
         const status = document.getElementById('taskStatus').value;
 
         if (!title) {
             alert('Пожалуйста, введите название задачи');
             return;
         }
+
+        const dueDateISO = dueDate ? new Date(dueDate + 'T23:59:59').toISOString() : null;
 
         if (this.currentTaskId) {
             // Обновление существующей задачи
@@ -129,6 +133,7 @@ class KanbanBoard {
                     title,
                     description,
                     priority,
+                    dueDate: dueDateISO,
                     status,
                     updatedAt: new Date().toISOString()
                 };
@@ -140,6 +145,7 @@ class KanbanBoard {
                 title,
                 description,
                 priority,
+                dueDate: dueDateISO,
                 status,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -204,8 +210,11 @@ class KanbanBoard {
     }
 
     createTaskElement(task) {
+        const isOverdue = this.isTaskOverdue(task);
+        const isDueSoon = this.isTaskDueSoon(task);
+
         const taskElement = document.createElement('div');
-        taskElement.className = `task priority-${task.priority}`;
+        taskElement.className = `task priority-${task.priority}${isOverdue ? ' overdue' : ''}${isDueSoon ? ' due-soon' : ''}`;
         taskElement.draggable = true;
         taskElement.dataset.taskId = task.id;
 
@@ -214,6 +223,13 @@ class KanbanBoard {
             medium: 'Средний',
             low: 'Низкий'
         };
+
+        const dueDateHtml = task.dueDate ? `
+            <div class="task-due-date${isOverdue ? ' overdue' : isDueSoon ? ' due-soon' : ''}">
+                <i class="fas fa-calendar-alt"></i>
+                ${this.formatDueDate(task.dueDate)}
+            </div>
+        ` : '';
 
         taskElement.innerHTML = `
             <div class="task-header">
@@ -228,7 +244,10 @@ class KanbanBoard {
                 </div>
             </div>
             ${task.description ? `<div class="task-description">${this.escapeHtml(task.description)}</div>` : ''}
-            <div class="task-priority priority-${task.priority}">${priorityLabels[task.priority]}</div>
+            <div class="task-footer">
+                <div class="task-priority priority-${task.priority}">${priorityLabels[task.priority]}</div>
+                ${dueDateHtml}
+            </div>
         `;
 
         // Добавляем обработчики событий
@@ -288,6 +307,7 @@ class KanbanBoard {
         const searchInput = document.getElementById('searchInput');
         const statusFilter = document.getElementById('statusFilter');
         const priorityFilter = document.getElementById('priorityFilter');
+        const dueDateFilter = document.getElementById('dueDateFilter');
 
         const updateFilters = () => {
             this.applyFilters();
@@ -296,12 +316,14 @@ class KanbanBoard {
         searchInput.addEventListener('input', updateFilters);
         statusFilter.addEventListener('change', updateFilters);
         priorityFilter.addEventListener('change', updateFilters);
+        dueDateFilter.addEventListener('change', updateFilters);
     }
 
     applyFilters() {
         const searchTerm = document.getElementById('searchInput').value.toLowerCase();
         const statusFilter = document.getElementById('statusFilter').value;
         const priorityFilter = document.getElementById('priorityFilter').value;
+        const dueDateFilter = document.getElementById('dueDateFilter').value;
 
         let filteredTasks = this.tasks;
 
@@ -321,6 +343,28 @@ class KanbanBoard {
         // Применяем фильтр приоритета
         if (priorityFilter !== 'all') {
             filteredTasks = filteredTasks.filter(task => task.priority === priorityFilter);
+        }
+
+        // Применяем фильтр по срокам
+        if (dueDateFilter !== 'all') {
+            filteredTasks = filteredTasks.filter(task => {
+                switch (dueDateFilter) {
+                    case 'overdue':
+                        return this.isTaskOverdue(task);
+                    case 'today':
+                        return task.dueDate && new Date(task.dueDate).toDateString() === new Date().toDateString();
+                    case 'week':
+                        if (!task.dueDate) return false;
+                        const dueDate = new Date(task.dueDate);
+                        const now = new Date();
+                        const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                        return dueDate >= now && dueDate <= weekFromNow;
+                    case 'no-date':
+                        return !task.dueDate;
+                    default:
+                        return true;
+                }
+            });
         }
 
         this.renderFilteredTasks(filteredTasks);
@@ -501,6 +545,45 @@ class KanbanBoard {
             this.updateTaskCounts();
         }
     }
+
+    // Методы для работы с датами
+    isTaskOverdue(task) {
+        if (!task.dueDate || task.status === 'done') return false;
+        const dueDate = new Date(task.dueDate);
+        const now = new Date();
+        return dueDate < now;
+    }
+
+    isTaskDueSoon(task) {
+        if (!task.dueDate || task.status === 'done') return false;
+        const dueDate = new Date(task.dueDate);
+        const now = new Date();
+        const timeDiff = dueDate - now;
+        const daysDiff = timeDiff / (1000 * 3600 * 24);
+        return daysDiff <= 3 && daysDiff > 0;
+    }
+
+    formatDueDate(dueDateString) {
+        const dueDate = new Date(dueDateString);
+        const now = new Date();
+        const timeDiff = dueDate - now;
+        const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+
+        const options = { day: 'numeric', month: 'short' };
+        const formattedDate = dueDate.toLocaleDateString('ru-RU', options);
+
+        if (this.isTaskOverdue({ dueDate: dueDateString })) {
+            return `Просрочено (${formattedDate})`;
+        } else if (daysDiff === 0) {
+            return 'Сегодня';
+        } else if (daysDiff === 1) {
+            return 'Завтра';
+        } else if (daysDiff > 1 && daysDiff <= 7) {
+            return `Через ${daysDiff} дн.`;
+        } else {
+            return formattedDate;
+        }
+    }
 }
 
 // Инициализация приложения
@@ -511,8 +594,16 @@ document.addEventListener('DOMContentLoaded', () => {
 // Добавляем несколько примеров задач при первом запуске
 document.addEventListener('DOMContentLoaded', () => {
     const existingTasks = JSON.parse(localStorage.getItem('kanbanTasks')) || [];
-    
+
     if (existingTasks.length === 0) {
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        const nextWeek = new Date(today);
+        nextWeek.setDate(today.getDate() + 7);
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+
         const sampleTasks = [
             {
                 id: 'sample1',
@@ -520,6 +611,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 description: 'Прочитать литературу по канбан и изучить основные принципы',
                 priority: 'high',
                 status: 'todo',
+                dueDate: nextWeek.toISOString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             },
@@ -529,6 +621,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 description: 'Разработать макеты для пользовательского интерфейса',
                 priority: 'medium',
                 status: 'in-progress',
+                dueDate: tomorrow.toISOString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             },
@@ -538,11 +631,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 description: 'Инициализировать Git репозиторий и настроить workflow',
                 priority: 'low',
                 status: 'done',
+                dueDate: yesterday.toISOString(),
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            },
+            {
+                id: 'sample4',
+                title: 'Подготовить презентацию проекта',
+                description: 'Создать слайды и подготовиться к демонстрации',
+                priority: 'high',
+                status: 'todo',
+                dueDate: today.toISOString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
             }
         ];
-        
+
         localStorage.setItem('kanbanTasks', JSON.stringify(sampleTasks));
     }
 }); 

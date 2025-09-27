@@ -31,6 +31,13 @@
                             <option value="medium">Средний</option>
                             <option value="low">Низкий</option>
                         </select>
+                        <select id="dueDateFilter">
+                            <option value="all">Все сроки</option>
+                            <option value="overdue">Просроченные</option>
+                            <option value="today">Сегодня</option>
+                            <option value="week">На этой неделе</option>
+                            <option value="no-date">Без срока</option>
+                        </select>
                     </div>
                 </div>
 
@@ -117,6 +124,10 @@
                         <option value="medium" selected>Средний</option>
                         <option value="high">Высокий</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label for="taskDueDate">Срок выполнения:</label>
+                    <input type="date" id="taskDueDate">
                 </div>
                 <div class="form-group">
                     <label for="taskStatus">Статус:</label>

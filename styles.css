@@ -14,6 +14,8 @@
     --priority-high: #f56565;
     --priority-medium: #ed8936;
     --priority-low: #48bb78;
+    --overdue-color: #e53e3e;
+    --due-soon-color: #ed8936;
 }
 
 [data-theme="dark"] {
@@ -32,6 +34,8 @@
     --priority-high: #fc8181;
     --priority-medium: #f6ad55;
     --priority-low: #68d391;
+    --overdue-color: #fc8181;
+    --due-soon-color: #f6ad55;
 }
 
 * {
@@ -278,6 +282,55 @@ body {
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 10px;
+}
+
+.task-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    gap: 10px;
+}
+
+.task-due-date {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--text-muted);
+    background: rgba(102, 126, 234, 0.1);
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-weight: 500;
+}
+
+.task-due-date i {
+    font-size: 11px;
+}
+
+.task-due-date.overdue {
+    background: rgba(229, 62, 62, 0.1);
+    color: var(--overdue-color);
+}
+
+.task-due-date.due-soon {
+    background: rgba(237, 137, 54, 0.1);
+    color: var(--due-soon-color);
+}
+
+.task.overdue {
+    border-left-color: var(--overdue-color) !important;
+    background: linear-gradient(135deg, rgba(229, 62, 62, 0.05), rgba(229, 62, 62, 0.02));
+}
+
+.task.overdue .task-title {
+    text-decoration: line-through;
+    opacity: 0.7;
+}
+
+.task.due-soon {
+    border-left-color: var(--due-soon-color) !important;
+    background: linear-gradient(135deg, rgba(237, 137, 54, 0.05), rgba(237, 137, 54, 0.02));
 }
 
 .task-title {
