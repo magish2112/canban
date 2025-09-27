@@ -318,6 +318,30 @@ body {
     color: var(--due-soon-color);
 }
 
+/* Стили для тэгов */
+.task-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 8px 0;
+}
+
+.task-tag {
+    background: var(--border-color);
+    color: var(--text-secondary);
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.task-tag:hover {
+    background: var(--border-focus);
+    color: white;
+}
+
 .task.overdue {
     border-left-color: var(--overdue-color) !important;
     background: linear-gradient(135deg, rgba(229, 62, 62, 0.05), rgba(229, 62, 62, 0.02));

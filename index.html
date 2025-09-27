@@ -38,6 +38,9 @@
                             <option value="week">На этой неделе</option>
                             <option value="no-date">Без срока</option>
                         </select>
+                        <select id="tagFilter">
+                            <option value="all">Все тэги</option>
+                        </select>
                     </div>
                 </div>
 
@@ -128,6 +131,10 @@
                 <div class="form-group">
                     <label for="taskDueDate">Срок выполнения:</label>
                     <input type="date" id="taskDueDate">
+                </div>
+                <div class="form-group">
+                    <label for="taskTags">Тэги (через запятую):</label>
+                    <input type="text" id="taskTags" placeholder="работа, срочное, проект">
                 </div>
                 <div class="form-group">
                     <label for="taskStatus">Статус:</label>

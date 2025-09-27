@@ -92,6 +92,7 @@ class KanbanBoard {
                 document.getElementById('taskDescription').value = task.description || '';
                 document.getElementById('taskPriority').value = task.priority;
                 document.getElementById('taskDueDate').value = task.dueDate ? task.dueDate.split('T')[0] : '';
+                document.getElementById('taskTags').value = task.tags ? task.tags.join(', ') : '';
                 statusSelect.value = task.status;
             }
         } else {
@@ -115,6 +116,7 @@ class KanbanBoard {
         const description = document.getElementById('taskDescription').value.trim();
         const priority = document.getElementById('taskPriority').value;
         const dueDate = document.getElementById('taskDueDate').value;
+        const tagsInput = document.getElementById('taskTags').value.trim();
         const status = document.getElementById('taskStatus').value;
 
         if (!title) {
@@ -123,6 +125,7 @@ class KanbanBoard {
         }
 
         const dueDateISO = dueDate ? new Date(dueDate + 'T23:59:59').toISOString() : null;
+        const tags = tagsInput ? tagsInput.split(',').map(tag => tag.trim()).filter(tag => tag) : [];
 
         if (this.currentTaskId) {
             // Обновление существующей задачи
@@ -134,6 +137,7 @@ class KanbanBoard {
                     description,
                     priority,
                     dueDate: dueDateISO,
+                    tags,
                     status,
                     updatedAt: new Date().toISOString()
                 };
@@ -146,6 +150,7 @@ class KanbanBoard {
                 description,
                 priority,
                 dueDate: dueDateISO,
+                tags,
                 status,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -154,6 +159,7 @@ class KanbanBoard {
         }
 
         this.saveToLocalStorage();
+        this.updateTagFilter();
         this.renderTasks();
         this.updateTaskCounts();
         this.closeModal();
@@ -163,6 +169,7 @@ class KanbanBoard {
         if (confirm('Вы уверены, что хотите удалить эту задачу?')) {
             this.tasks = this.tasks.filter(task => task.id !== taskId);
             this.saveToLocalStorage();
+            this.updateTagFilter();
             this.renderTasks();
             this.updateTaskCounts();
         }
@@ -231,6 +238,12 @@ class KanbanBoard {
             </div>
         ` : '';
 
+        const tagsHtml = task.tags && task.tags.length > 0 ? `
+            <div class="task-tags">
+                ${task.tags.map(tag => `<span class="task-tag">${this.escapeHtml(tag)}</span>`).join('')}
+            </div>
+        ` : '';
+
         taskElement.innerHTML = `
             <div class="task-header">
                 <div class="task-title">${this.escapeHtml(task.title)}</div>
@@ -244,6 +257,7 @@ class KanbanBoard {
                 </div>
             </div>
             ${task.description ? `<div class="task-description">${this.escapeHtml(task.description)}</div>` : ''}
+            ${tagsHtml}
             <div class="task-footer">
                 <div class="task-priority priority-${task.priority}">${priorityLabels[task.priority]}</div>
                 ${dueDateHtml}
@@ -308,6 +322,7 @@ class KanbanBoard {
         const statusFilter = document.getElementById('statusFilter');
         const priorityFilter = document.getElementById('priorityFilter');
         const dueDateFilter = document.getElementById('dueDateFilter');
+        const tagFilter = document.getElementById('tagFilter');
 
         const updateFilters = () => {
             this.applyFilters();
@@ -317,6 +332,10 @@ class KanbanBoard {
         statusFilter.addEventListener('change', updateFilters);
         priorityFilter.addEventListener('change', updateFilters);
         dueDateFilter.addEventListener('change', updateFilters);
+        tagFilter.addEventListener('change', updateFilters);
+
+        // Обновляем список доступных тэгов
+        this.updateTagFilter();
     }
 
     applyFilters() {
@@ -324,6 +343,7 @@ class KanbanBoard {
         const statusFilter = document.getElementById('statusFilter').value;
         const priorityFilter = document.getElementById('priorityFilter').value;
         const dueDateFilter = document.getElementById('dueDateFilter').value;
+        const tagFilter = document.getElementById('tagFilter').value;
 
         let filteredTasks = this.tasks;
 
@@ -331,7 +351,8 @@ class KanbanBoard {
         if (searchTerm) {
             filteredTasks = filteredTasks.filter(task =>
                 task.title.toLowerCase().includes(searchTerm) ||
-                (task.description && task.description.toLowerCase().includes(searchTerm))
+                (task.description && task.description.toLowerCase().includes(searchTerm)) ||
+                (task.tags && task.tags.some(tag => tag.toLowerCase().includes(searchTerm)))
             );
         }
 
@@ -365,6 +386,13 @@ class KanbanBoard {
                         return true;
                 }
             });
+        }
+
+        // Применяем фильтр по тэгам
+        if (tagFilter !== 'all') {
+            filteredTasks = filteredTasks.filter(task =>
+                task.tags && task.tags.includes(tagFilter)
+            );
         }
 
         this.renderFilteredTasks(filteredTasks);
@@ -584,6 +612,32 @@ class KanbanBoard {
             return formattedDate;
         }
     }
+
+    // Система тэгов
+    updateTagFilter() {
+        const tagFilter = document.getElementById('tagFilter');
+        const allTags = new Set();
+
+        // Собираем все уникальные тэги из задач
+        this.tasks.forEach(task => {
+            if (task.tags) {
+                task.tags.forEach(tag => allTags.add(tag));
+            }
+        });
+
+        // Очищаем текущие опции кроме "Все тэги"
+        while (tagFilter.children.length > 1) {
+            tagFilter.removeChild(tagFilter.lastChild);
+        }
+
+        // Добавляем все найденные тэги
+        Array.from(allTags).sort().forEach(tag => {
+            const option = document.createElement('option');
+            option.value = tag;
+            option.textContent = tag;
+            tagFilter.appendChild(option);
+        });
+    }
 }
 
 // Инициализация приложения
@@ -611,6 +665,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 description: 'Прочитать литературу по канбан и изучить основные принципы',
                 priority: 'high',
                 status: 'todo',
+                tags: ['обучение', 'методология'],
                 dueDate: nextWeek.toISOString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -621,6 +676,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 description: 'Разработать макеты для пользовательского интерфейса',
                 priority: 'medium',
                 status: 'in-progress',
+                tags: ['дизайн', 'UI/UX', 'проект'],
                 dueDate: tomorrow.toISOString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -631,6 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 description: 'Инициализировать Git репозиторий и настроить workflow',
                 priority: 'low',
                 status: 'done',
+                tags: ['технологии', 'инструменты'],
                 dueDate: yesterday.toISOString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -641,6 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 description: 'Создать слайды и подготовиться к демонстрации',
                 priority: 'high',
                 status: 'todo',
+                tags: ['презентация', 'проект', 'срочное'],
                 dueDate: today.toISOString(),
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
